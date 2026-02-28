@@ -1,0 +1,6 @@
+On test case ./data/sc_157_0 got score 102100. Easy limit passed. Score 5
+On test case ./data/sc_330_0 got score 30. No limit passed. Score 0
+On test case ./data/sc_1000_11 got score 170. Easy limit passed. Score 5
+On test case ./data/sc_5000_1 got score 36. Easy limit passed. Score 5
+On test case ./data/sc_10000_5 got score 76. Easy limit passed. Score 5
+On test case ./data/sc_10000_2 got score 192. Easy limit passed. Score 5
