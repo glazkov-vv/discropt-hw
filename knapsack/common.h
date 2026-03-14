@@ -10,4 +10,8 @@ struct TObject
     i64 Id;
     i64 Weight;
     i64 Cost;
+
+    bool operator<(const TObject& other) const {
+        return Id < other.Id;
+    }
 };

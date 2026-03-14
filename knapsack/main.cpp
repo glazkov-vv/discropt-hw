@@ -68,9 +68,9 @@ int main() {
 
         std::cout << "On test case " << name << " got score " << score << ". ";
         if (score >= hardLimit) {
-            std::cout << "Hard limit passed. Score 7" << std::endl;
+            std::cout << "Hard limit passed. Score 5" << std::endl;
         } else if (score >= easyLimit) {
-            std::cout << "Easy limit passed. Score 5" << std::endl;
+            std::cout << "Easy limit passed. Score 3" << std::endl;
         } else {
             std::cout << "No limit passed. Score 0" << std::endl;
         }
