@@ -127,38 +127,90 @@ double Similarity(const TSolution& a, const TSolution& b) {
   return uni == 0 ? 1.0 : static_cast<double>(inter) / uni;
 }
 
-// Пытаемся улучшить слот: удаляем случайную часть и достраиваем жадно с шумом.
-TSolution Improve(const std::vector<TObject>& objects, const TSolution& base,
-                  std::mt19937_64& rng, double randomPickProb,
-                  double removeFraction) {
-  const i64 N = static_cast<i64>(objects.size());
-  TSolution cand = base;
+// Помощник: удаляет одно множество из решения, поддерживая
+// coverCount/uncovered.
+void RemoveSet(const std::vector<TObject>& objects, TSolution& sol, i64 idx,
+               i64& uncovered) {
+  sol.selected[idx] = false;
+  sol.totalCost -= objects[idx].c;
+  for (i64 e : objects[idx].ss) {
+    sol.coverCount[e]--;
+    if (sol.coverCount[e] == 0) uncovered++;
+  }
+}
 
+// Разрушение по случайным множествам.
+void DestroyByRandomSets(const std::vector<TObject>& objects, TSolution& sol,
+                         i64& uncovered, std::mt19937_64& rng,
+                         double removeFraction) {
+  const i64 N = static_cast<i64>(objects.size());
   std::vector<i64> sel;
   sel.reserve(N);
   for (i64 i = 0; i < N; i++) {
-    if (cand.selected[i]) sel.push_back(i);
+    if (sol.selected[i]) sel.push_back(i);
   }
-  if (sel.empty()) return cand;
+  if (sel.empty()) return;
 
   std::shuffle(sel.begin(), sel.end(), rng);
   i64 removeCnt =
       std::max<i64>(1, static_cast<i64>(sel.size() * removeFraction));
   if (removeCnt > static_cast<i64>(sel.size())) removeCnt = sel.size();
 
+  for (i64 t = 0; t < removeCnt; t++) {
+    RemoveSet(objects, sol, sel[t], uncovered);
+  }
+}
+
+// Разрушение по элементам: выбираем случайные элементы и удаляем все
+// выбранные множества, покрывающие их, пока не разрушим примерно
+// removeFraction текущего покрытия.
+void DestroyByElements(i64 m, const std::vector<TObject>& objects,
+                       TSolution& sol, i64& uncovered, std::mt19937_64& rng,
+                       double removeFraction,
+                       const std::vector<std::vector<i64>>& coversOf) {
+  i64 currSel = 0;
+  for (bool b : sol.selected) {
+    if (b) currSel++;
+  }
+  if (currSel == 0) return;
+
+  const i64 target =
+      std::max<i64>(1, static_cast<i64>(currSel * removeFraction));
+  i64 removed = 0;
+
+  std::vector<i64> elemOrder(m);
+  std::iota(elemOrder.begin(), elemOrder.end(), 0);
+  std::shuffle(elemOrder.begin(), elemOrder.end(), rng);
+
+  for (i64 e : elemOrder) {
+    if (removed >= target) break;
+    for (i64 idx : coversOf[e]) {
+      if (sol.selected[idx]) {
+        RemoveSet(objects, sol, idx, uncovered);
+        removed++;
+      }
+    }
+  }
+}
+
+// Пытаемся улучшить слот: разрушаем (одним из двух способов) и достраиваем.
+TSolution Improve(i64 m, const std::vector<TObject>& objects,
+                  const TSolution& base,
+                  const std::vector<std::vector<i64>>& coversOf,
+                  std::mt19937_64& rng, double randomPickProb,
+                  double removeFraction) {
+  TSolution cand = base;
   i64 uncovered = 0;
   for (i64 c : cand.coverCount) {
     if (c == 0) uncovered++;
   }
 
-  for (i64 t = 0; t < removeCnt; t++) {
-    i64 idx = sel[t];
-    cand.selected[idx] = false;
-    cand.totalCost -= objects[idx].c;
-    for (i64 e : objects[idx].ss) {
-      cand.coverCount[e]--;
-      if (cand.coverCount[e] == 0) uncovered++;
-    }
+  std::uniform_real_distribution<double> uni01(0.0, 1.0);
+  if (uni01(rng) < 1) {
+    DestroyByRandomSets(objects, cand, uncovered, rng, removeFraction);
+  } else {
+    DestroyByElements(m, objects, cand, uncovered, rng, removeFraction,
+                      coversOf);
   }
 
   GreedyExtend(objects, cand, uncovered, rng, randomPickProb);
@@ -174,7 +226,15 @@ std::vector<i64> Solve(i64 m, std::vector<TObject> objects) {
 
   std::mt19937_64 rng(123456789);
 
-  constexpr i64 PoolSize = 5;
+  // Обратный индекс: для каждого элемента — индексы покрывающих его множеств.
+  std::vector<std::vector<i64>> coversOf(m);
+  for (i64 i = 0; i < N; i++) {
+    for (i64 e : objects[i].ss) {
+      if (e >= 0 && e < m) coversOf[e].push_back(i);
+    }
+  }
+
+  constexpr i64 PoolSize = 1;
   TSolution greedy = MakeGreedy(m, objects, rng);
   if (greedy.totalCost == 0) return {};
   std::vector<TSolution> pool(PoolSize, greedy);
@@ -184,10 +244,10 @@ std::vector<i64> Solve(i64 m, std::vector<TObject> objects) {
 
   // Со временем уменьшаем "разнообразие": в начале больше шума и более крупные
   // разрушения, к концу — точная локальная доводка.
-  const double randomPickProbInit = 0.25;
-  const double randomPickProbFinal = 0;
-  const double removeFractionInit = 0.30;
-  const double removeFractionFinal = 0.10;
+  const double randomPickProbInit = 0.13;
+  const double randomPickProbFinal = 0.13;
+  const double removeFractionInit = 0.25;
+  const double removeFractionFinal = 0.25;
 
   const double simThreshold =
       0.85;  // пара решений с большим сходством — "слишком похожие"
@@ -211,8 +271,8 @@ std::vector<i64> Solve(i64 m, std::vector<TObject> objects) {
       candidates.push_back(pool[i]);
     }
     for (i64 i = 0; i < PoolSize; i++) {
-      TSolution imp =
-          Improve(objects, pool[i], rng, randomPickProb, removeFraction);
+      TSolution imp = Improve(m, objects, pool[i], coversOf, rng,
+                              randomPickProb, removeFraction);
       // принимаем только допустимое (DropRedundant вызван внутри, если ок)
       i64 unc = 0;
       for (i64 c : imp.coverCount) {
