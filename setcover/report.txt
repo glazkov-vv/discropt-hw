@@ -1,1 +1,1 @@
-On test case ./data/sc_157_0 got score 96500. Easy limit passed. Score 5
+On test case ./data/sc_10000_2 got score 172. Easy limit passed. Score 5
