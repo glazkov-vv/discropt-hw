@@ -3,6 +3,7 @@
 #include <sstream>
 
 #include "aco.h"
+#include "sa.h"
 #include "check.h"
 
 const std::string TestsFilename = "tests.txt";
@@ -59,7 +60,7 @@ int main() {
 
     iss >> name >> easyLimit >> hardLimit;
     auto testCase = ReadFromFile(name);
-    auto result = SolveACO(testCase.Points);
+    auto result = SolveSA(testCase.Points);
 
     try {
       Check(testCase.Points, result);
