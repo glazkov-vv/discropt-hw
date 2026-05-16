@@ -158,7 +158,7 @@ static bool TryEliminateColor(std::vector<i64>& color,
 
     const i64 curSize = std::ssize(members);
     const i64 slack = std::max<i64>(2, curSize / 2);
-    const i64 sizeCap = curSize + slack;
+    const i64 maxSizeAllowed = curSize + slack;
 
     std::uniform_int_distribution<i64> mDist(0, curSize - 1);
     std::uniform_int_distribution<i64> cDist(0, maxColor);
@@ -179,7 +179,7 @@ static bool TryEliminateColor(std::vector<i64>& color,
           newSize++;
         }
       }
-      if (newSize <= sizeCap) {
+      if (newSize <= maxSizeAllowed) {
         color = std::move(trial);
         accepted = true;
         break;
