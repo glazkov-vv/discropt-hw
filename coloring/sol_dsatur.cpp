@@ -114,14 +114,29 @@ static bool TryEliminateColor(std::vector<i64>& color,
     return s;
   };
 
-  i64 stall = 0;
+  // std::cout << "Tryeliminatecolor " << std::endl;
+
+  constexpr double InnerBudget = 1.0;
+  auto innerStart = std::chrono::steady_clock::now();
+  auto innerElapsed = [&] {
+    return std::chrono::duration<double>(std::chrono::steady_clock::now() -
+                                         innerStart)
+        .count();
+  };
+
   while (true) {
+    if (innerElapsed() >= InnerBudget) {
+      color = std::move(backup);
+      return false;
+    }
+
     std::vector<i64> members;
     for (i64 v = 0; v < n; v++) {
       if (color[v] == targetColor) {
         members.push_back(v);
       }
     }
+    // std::cout << "Current smallest size " << members.size() << std::endl;
     if (members.empty()) {
       return true;
     }
@@ -148,53 +163,43 @@ static bool TryEliminateColor(std::vector<i64>& color,
       }
     }
     if (progress) {
-      stall = 0;
       continue;
     }
 
-    // No direct move possible. Try Kempe chain swaps that strictly shrink
-    // the target class.
-    i64 curSize = std::ssize(members);
-    i64 bestV = -1, bestC = -1, bestSize = curSize;
-    for (i64 v : members) {
-      for (i64 c = 0; c <= maxColor; c++) {
-        if (c == targetColor) continue;
-        auto trial = color;
-        KempeChainSwap(trial, adj, v, c);
-        i64 s = 0;
-        for (i64 x : trial) {
-          if (x == targetColor) s++;
-        }
-        if (s < bestSize) {
-          bestSize = s;
-          bestV = v;
-          bestC = c;
-        }
+    // Random Kempe perturbation, but rejection-sample so the swap may grow the
+    // target class by at most `slack` vertices. This lets us trade a stuck
+    // vertex for hopefully-easier ones without ballooning the class.
+    const i64 curSize = std::ssize(members);
+    const i64 slack = std::max<i64>(2, curSize / 2);
+    const i64 sizeCap = curSize + slack;
+
+    std::uniform_int_distribution<i64> mDist(0, curSize - 1);
+    std::uniform_int_distribution<i64> cDist(0, maxColor);
+
+    bool accepted = false;
+    for (int attempt = 0; attempt < 20; attempt++) {
+      i64 vCand = members[mDist(rng)];
+      i64 cCand;
+      do {
+        cCand = cDist(rng);
+      } while (cCand == targetColor);
+
+      auto trial = color;
+      KempeChainSwap(trial, adj, vCand, cCand);
+      i64 newSize = 0;
+      for (i64 x : trial) {
+        if (x == targetColor) newSize++;
+      }
+      if (newSize <= sizeCap) {
+        color = std::move(trial);
+        accepted = true;
+        break;
       }
     }
-    if (bestV != -1) {
-      KempeChainSwap(color, adj, bestV, bestC);
-      stall = 0;
-      continue;
+    if (!accepted) {
+      color = std::move(backup);
+      return false;
     }
-
-    // Random Kempe swap to perturb the configuration, hoping a direct move
-    // opens up next iteration.
-    if (stall < 4) {
-      std::uniform_int_distribution<i64> mDist(0, std::ssize(members) - 1);
-      std::uniform_int_distribution<i64> cDist(0, maxColor);
-      i64 v = members[mDist(rng)];
-      i64 c;
-      do {
-        c = cDist(rng);
-      } while (c == targetColor);
-      KempeChainSwap(color, adj, v, c);
-      stall++;
-      continue;
-    }
-
-    color = std::move(backup);
-    return false;
   }
 }
 
@@ -269,7 +274,7 @@ std::vector<i64> Solve(i64 n, const std::vector<TEdge>& edges) {
   std::vector<i64> current = best;
 
   while (elapsed() < TimeLimit) {
-    std::cout << "iteration " << elapsed() << std::endl;
+    // std::cout << "iteration " << elapsed() << std::endl;
     i64 k = NumColors(current);
 
     // Identify the smallest color class and try to dissolve it via Kempe
@@ -284,7 +289,8 @@ std::vector<i64> Solve(i64 n, const std::vector<TEdge>& edges) {
                      [&](i64 a, i64 b) { return sizes[a] < sizes[b]; });
 
     bool improved = false;
-    for (i64 target : classOrder) {
+    for (i64 i = 0; i < std::min(k, 5ll); i++) {
+      i64 target = classOrder[i];
       auto trial = current;
       if (TryEliminateColor(trial, adj, target, rng)) {
         // Compact colors so they stay 0..k-2.
