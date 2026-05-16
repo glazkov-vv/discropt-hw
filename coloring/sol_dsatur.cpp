@@ -18,16 +18,13 @@ static i64 NumColors(const std::vector<i64>& coloring) {
   return *std::max_element(coloring.begin(), coloring.end()) + 1;
 }
 
-// DSATUR: at each step, pick the uncolored vertex whose colored neighbors use
-// the largest number of distinct colors; break ties by uncolored-neighbor
-// degree. Assign it the smallest color unused by its neighbors.
 static std::vector<i64> Dsatur(const std::vector<std::vector<i64>>& adj) {
   i64 n = adj.size();
   std::vector<i64> color(n, -1);
-  std::vector<std::set<i64>> satNbrColors(n);
-  std::vector<i64> uncoloredNbrDeg(n);
+  std::vector<std::set<i64>> satNumColors(n);
+  std::vector<i64> uncoloredNumDeg(n);
   for (i64 i = 0; i < n; i++) {
-    uncoloredNbrDeg[i] = adj[i].size();
+    uncoloredNumDeg[i] = adj[i].size();
   }
 
   for (i64 step = 0; step < n; step++) {
@@ -40,31 +37,28 @@ static std::vector<i64> Dsatur(const std::vector<std::vector<i64>>& adj) {
         best = v;
         continue;
       }
-      i64 sv = satNbrColors[v].size();
-      i64 sb = satNbrColors[best].size();
-      if (sv > sb || (sv == sb && uncoloredNbrDeg[v] > uncoloredNbrDeg[best])) {
+      i64 sv = satNumColors[v].size();
+      i64 sb = satNumColors[best].size();
+      if (sv > sb || (sv == sb && uncoloredNumDeg[v] > uncoloredNumDeg[best])) {
         best = v;
       }
     }
 
     i64 c = 0;
-    while (satNbrColors[best].count(c)) {
+    while (satNumColors[best].count(c)) {
       c++;
     }
     color[best] = c;
     for (i64 u : adj[best]) {
       if (color[u] < 0) {
-        satNbrColors[u].insert(c);
-        uncoloredNbrDeg[u]--;
+        satNumColors[u].insert(c);
+        uncoloredNumDeg[u]--;
       }
     }
   }
   return color;
 }
 
-// Swap colors along the Kempe chain containing v in the bichromatic subgraph
-// induced by colors {color[v], targetColor}. After the swap, v has color
-// targetColor and the result is still a proper coloring.
 static void KempeChainSwap(std::vector<i64>& color,
                            const std::vector<std::vector<i64>>& adj, i64 v,
                            i64 targetColor) {
@@ -81,9 +75,9 @@ static void KempeChainSwap(std::vector<i64>& color,
   while (!q.empty()) {
     i64 u = q.front();
     q.pop();
-    i64 look = (color[u] == oldColor) ? targetColor : oldColor;
+    i64 look = ((color[u] == oldColor) ? targetColor : oldColor);
     for (i64 w : adj[u]) {
-      if (!inChain[w] && color[w] == look) {
+      if (!inChain[w] && (color[w] == look)) {
         inChain[w] = 1;
         chain.push_back(w);
         q.push(w);
@@ -91,14 +85,10 @@ static void KempeChainSwap(std::vector<i64>& color,
     }
   }
   for (i64 u : chain) {
-    color[u] = (color[u] == oldColor) ? targetColor : oldColor;
+    color[u] = ((color[u] == oldColor) ? targetColor : oldColor);
   }
 }
 
-// Try to empty the color class `targetColor` by relocating each of its
-// vertices. First attempt a direct recolor; otherwise try Kempe chain swaps
-// that shrink the targetColor class. Returns true iff the class is fully
-// emptied.
 static bool TryEliminateColor(std::vector<i64>& color,
                               const std::vector<std::vector<i64>>& adj,
                               i64 targetColor, std::mt19937& rng) {
@@ -144,15 +134,15 @@ static bool TryEliminateColor(std::vector<i64>& color,
 
     bool progress = false;
     for (i64 v : members) {
-      std::vector<char> nbrColor(maxColor + 1, 0);
+      std::vector<char> numColor(maxColor + 1, 0);
       for (i64 u : adj[v]) {
         if (color[u] >= 0 && color[u] <= maxColor) {
-          nbrColor[color[u]] = 1;
+          numColor[color[u]] = 1;
         }
       }
       i64 directColor = -1;
       for (i64 c = 0; c <= maxColor; c++) {
-        if (c != targetColor && !nbrColor[c]) {
+        if (c != targetColor && !numColor[c]) {
           directColor = c;
           break;
         }
@@ -166,9 +156,6 @@ static bool TryEliminateColor(std::vector<i64>& color,
       continue;
     }
 
-    // Random Kempe perturbation, but rejection-sample so the swap may grow the
-    // target class by at most `slack` vertices. This lets us trade a stuck
-    // vertex for hopefully-easier ones without ballooning the class.
     const i64 curSize = std::ssize(members);
     const i64 slack = std::max<i64>(2, curSize / 2);
     const i64 sizeCap = curSize + slack;
@@ -179,16 +166,18 @@ static bool TryEliminateColor(std::vector<i64>& color,
     bool accepted = false;
     for (int attempt = 0; attempt < 20; attempt++) {
       i64 vCand = members[mDist(rng)];
-      i64 cCand;
-      do {
+      i64 cCand = cDist(rng);
+      while (cCand == targetColor) {
         cCand = cDist(rng);
-      } while (cCand == targetColor);
+      }
 
       auto trial = color;
       KempeChainSwap(trial, adj, vCand, cCand);
       i64 newSize = 0;
       for (i64 x : trial) {
-        if (x == targetColor) newSize++;
+        if (x == targetColor) {
+          newSize++;
+        }
       }
       if (newSize <= sizeCap) {
         color = std::move(trial);
@@ -201,55 +190,6 @@ static bool TryEliminateColor(std::vector<i64>& color,
       return false;
     }
   }
-}
-
-// After Kempe-chain shuffling, re-derive a vertex ordering from the current
-// coloring (smaller color classes first) and re-run a greedy coloring.
-static std::vector<i64> GreedyByOrdering(
-    const std::vector<std::vector<i64>>& adj, const std::vector<i64>& order) {
-  i64 n = adj.size();
-  std::vector<i64> color(n, -1);
-  for (i64 v : order) {
-    i64 deg = std::ssize(adj[v]);
-    std::vector<char> forbidden(deg + 2, 0);
-    for (i64 u : adj[v]) {
-      if (color[u] >= 0 && color[u] <= deg) {
-        forbidden[color[u]] = 1;
-      }
-    }
-    for (i64 c = 0;; c++) {
-      if (!forbidden[c]) {
-        color[v] = c;
-        break;
-      }
-    }
-  }
-  return color;
-}
-
-static std::vector<i64> OrderingFromColoring(const std::vector<i64>& color,
-                                             std::mt19937& rng) {
-  i64 n = color.size();
-  i64 k = NumColors(color);
-  std::vector<std::vector<i64>> classes(k);
-  for (i64 v = 0; v < n; v++) {
-    classes[color[v]].push_back(v);
-  }
-  // Largest class first — the standard "largest-first" trick after a target
-  // class has been eliminated. The smallest classes (often singletons from
-  // failed Kempe attempts) are pushed to the end.
-  std::stable_sort(
-      classes.begin(), classes.end(),
-      [](const auto& a, const auto& b) { return a.size() > b.size(); });
-  std::vector<i64> order;
-  order.reserve(n);
-  for (auto& cls : classes) {
-    std::shuffle(cls.begin(), cls.end(), rng);
-    for (i64 v : cls) {
-      order.push_back(v);
-    }
-  }
-  return order;
 }
 
 std::vector<i64> Solve(i64 n, const std::vector<TEdge>& edges) {
@@ -277,8 +217,6 @@ std::vector<i64> Solve(i64 n, const std::vector<TEdge>& edges) {
     // std::cout << "iteration " << elapsed() << std::endl;
     i64 k = NumColors(current);
 
-    // Identify the smallest color class and try to dissolve it via Kempe
-    // chains.
     std::vector<i64> sizes(k, 0);
     for (i64 c : current) {
       sizes[c]++;
@@ -293,7 +231,6 @@ std::vector<i64> Solve(i64 n, const std::vector<TEdge>& edges) {
       i64 target = classOrder[i];
       auto trial = current;
       if (TryEliminateColor(trial, adj, target, rng)) {
-        // Compact colors so they stay 0..k-2.
         std::vector<i64> remap(k, -1);
         i64 next = 0;
         for (i64 v = 0; v < n; v++) {
@@ -316,32 +253,8 @@ std::vector<i64> Solve(i64 n, const std::vector<TEdge>& edges) {
         break;
       }
     }
-
-    if (!improved) {
-      // Stuck: perturb by greedy re-coloring with a randomized class-based
-      // ordering, then restart improvement from there if it isn't worse.
-      auto order = OrderingFromColoring(current, rng);
-      auto reGreedy = GreedyByOrdering(adj, order);
-      i64 rk = NumColors(reGreedy);
-      if (rk < bestK) {
-        bestK = rk;
-        best = reGreedy;
-      }
-      if (rk <= NumColors(current)) {
-        current = std::move(reGreedy);
-      } else {
-        // Random restart from a shuffled DSATUR-like baseline.
-        current = best;
-        std::vector<i64> shuf(n);
-        std::iota(shuf.begin(), shuf.end(), 0);
-        std::shuffle(shuf.begin(), shuf.end(), rng);
-        for (i64 i = 0; i + 1 < n; i += 2) {
-          std::uniform_int_distribution<i64> cd(0, NumColors(current) - 1);
-          i64 v = shuf[i];
-          i64 c = cd(rng);
-          KempeChainSwap(current, adj, v, c);
-        }
-      }
+    else {
+      break;
     }
   }
 
