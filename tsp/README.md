@@ -33,3 +33,19 @@ On test case ./data/tsp_200_2 got length 29888.3. Hard limit passed. Score 5
 On test case ./data/tsp_574_1 got length 39644.7. Easy limit passed. Score 3
 On test case ./data/tsp_1889_1 got length 346412. Easy limit passed. Score 3
 ```
+
+## Попытка 3. Отжиг
+
+Храним одно решение. Пытаемся модифицировать его эвристикой TwoOpt (перевернуть сегмент пути), принимаем улучшающую модификацию всегда, принимаем ухудшающую вероятностно (в зависимости от температуры, которая падает с течением времени).
+
+Решение пробивает 5 простых порогов и 4 сложных.
+
+Попытки подкрутить температуру с дефолтных значений и добавить другой вид модификации (OrOpt) не повлияли на качество решения.
+
+```
+On test case ./data/tsp_51_1 got length 428.872. Hard limit passed. Score 5
+On test case ./data/tsp_100_3 got length 20750.8. Hard limit passed. Score 5
+On test case ./data/tsp_200_2 got length 29500.3. Hard limit passed. Score 5
+On test case ./data/tsp_574_1 got length 37468.8. Hard limit passed. Score 5
+On test case ./data/tsp_1889_1 got length 328138. Easy limit passed. Score 3
+```
