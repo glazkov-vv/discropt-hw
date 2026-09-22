@@ -1,6 +1,6 @@
 On test case ./data/fl_25_2 got cost 3269821.32. Hard limit passed. Score 7
-On test case ./data/fl_100_1 got cost 23093847.40. Easy limit passed. Score 5
-On test case ./data/fl_200_7 got cost 4718540.05. Easy limit passed. Score 5
-On test case ./data/fl_500_7 got cost 27113842.92. Easy limit passed. Score 5
-On test case ./data/fl_1000_2 got cost 8902762.22. Easy limit passed. Score 5
-On test case ./data/fl_2000_2 got cost 7431116.84. Hard limit passed. Score 7
+On test case ./data/fl_100_1 got cost 22754921.17. Easy limit passed. Score 5
+On test case ./data/fl_200_7 got cost 4716405.31. Easy limit passed. Score 5
+On test case ./data/fl_500_7 got cost 27017115.42. Easy limit passed. Score 5
+On test case ./data/fl_1000_2 got cost 8887266.70. Easy limit passed. Score 5
+On test case ./data/fl_2000_2 got cost 7358550.16. Hard limit passed. Score 7

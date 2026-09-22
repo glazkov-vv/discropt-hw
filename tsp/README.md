@@ -33,3 +33,20 @@ On test case ./data/tsp_200_2 got length 29888.3. Hard limit passed. Score 5
 On test case ./data/tsp_574_1 got length 39644.7. Easy limit passed. Score 3
 On test case ./data/tsp_1889_1 got length 346412. Easy limit passed. Score 3
 ```
+
+## Попытка 3. Керниган-Лин
+
+Строим жадное приближение, потом до определенной глубины делаем последовательные 2-opt (пробуем до нескольких ближайших соседен), принимаем лучший префикс (если улучшает результат).
+
+Периодически для выходов из локальных минимумов делаем своп двух отрезков путей.
+
+Решение проходит все сложные тесты
+
+```
+On test case ./data/tsp_51_1 got length 428.872. Hard limit passed. Score 5
+On test case ./data/tsp_100_3 got length 20750.8. Hard limit passed. Score 5
+On test case ./data/tsp_200_2 got length 29440.4. Hard limit passed. Score 5
+On test case ./data/tsp_574_1 got length 36969. Hard limit passed. Score 5
+On test case ./data/tsp_1889_1 got length 317703. Hard limit passed. Score 5
+On test case ./data/tsp_33810_1 got length 6.73008e+07. Hard limit passed. Score 5
+```

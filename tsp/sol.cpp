@@ -7,7 +7,7 @@
 
 static constexpr double TimeBudget = 60.0;
 
-static double RouteLength(const std::vector<TPoint>& points,
+double RouteLength(const std::vector<TPoint>& points,
                           const std::vector<i64>& route) {
   i64 n = route.size();
   double total = 0;
@@ -17,7 +17,7 @@ static double RouteLength(const std::vector<TPoint>& points,
   return total;
 }
 
-static std::vector<i64> RandomizedGreedy(const std::vector<TPoint>& points,
+std::vector<i64> RandomizedGreedy(const std::vector<TPoint>& points,
                                          std::mt19937& rng) {
   i64 n = points.size();
   std::vector<bool> visited(n, false);

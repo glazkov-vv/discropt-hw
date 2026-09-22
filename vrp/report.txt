@@ -1,0 +1,6 @@
+On test case ./data/vrp_16_3_1 got length 285.50. Easy limit passed. Score 5
+On test case ./data/vrp_26_8_1 got length 607.65. Hard limit passed. Score 7
+On test case ./data/vrp_51_5_1 got length 545.68. Easy limit passed. Score 5
+On test case ./data/vrp_101_10_1 got length 829.76. Hard limit passed. Score 7
+On test case ./data/vrp_200_16_1 got length 1464.25. Easy limit passed. Score 5
+On test case ./data/vrp_421_41_1 got length 1902.20. Hard limit passed. Score 7
